@@ -1,0 +1,17 @@
+# Python Environment
+.venv/
+__pycache__/
+
+# Mac System Files
+.DS_Store
+
+# Brain Atlases & Heavy Weights
+talairach.nii
+
+# Dependencies
+tribev2/
+
+# Raw and Synthetic Data 
+data/raw_video/*.mp4
+data/raw_video/*.mov
+data/synthetic_fmri/*.npy
