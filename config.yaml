@@ -1,0 +1,23 @@
+paths:
+  raw_video: data/raw_video/grasp_test.mp4
+  clean_video: data/raw_video/grasp_test_clean.mp4
+  raw_tensor: data/synthetic_fmri/grasp_tensor_raw.npy
+  motor_tensor: data/synthetic_fmri/motor_intent_refined.npy
+  kinematics: data/synthetic_fmri/grasp_kinematics.npy
+  model: models/ns2c_decoder_v1.pth
+  atlas: talairach.nii
+
+masking:
+  motor_labels: [4, 6]
+  fallback_percentile: 90   # used when atlas masking finds 0 motor vertices
+
+decoder:
+  hidden_size: 128
+  num_layers: 2
+  epochs: 300
+  lr: 0.01
+  n_frames: 4               # number of fMRI time-frames to decode
+
+simulation:
+  smooth_window: 5          # Savitzky-Golay window length (must be odd)
+  smooth_poly: 2            # Savitzky-Golay polynomial order
