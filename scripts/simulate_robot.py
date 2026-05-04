@@ -8,6 +8,7 @@ Runs decoded neural commands on a 7-DOF robotic arm with:
 """
 
 import argparse
+import pickle
 import time
 from pathlib import Path
 
@@ -76,13 +77,13 @@ MJCF_MODEL = """
         </body>
     </worldbody>
     <actuator>
-        <position name="a1" joint="joint1" kp="100"/>
-        <position name="a2" joint="joint2" kp="100"/>
-        <position name="a3" joint="joint3" kp="100"/>
-        <position name="a4" joint="joint4" kp="50"/>
-        <position name="a5" joint="joint5" kp="50"/>
-        <position name="a6" joint="joint6" kp="50"/>
-        <position name="a7" joint="joint7" kp="50"/>
+        <position name="a1" joint="joint1" kp="20" kv="2"/>
+        <position name="a2" joint="joint2" kp="20" kv="2"/>
+        <position name="a3" joint="joint3" kp="20" kv="2"/>
+        <position name="a4" joint="joint4" kp="10" kv="1"/>
+        <position name="a5" joint="joint5" kp="10" kv="1"/>
+        <position name="a6" joint="joint6" kp="10" kv="1"/>
+        <position name="a7" joint="joint7" kp="10" kv="1"/>
     </actuator>
 </mujoco>
 """
@@ -122,6 +123,16 @@ def enforce_joint_limits(predictions: np.ndarray) -> np.ndarray:
     return predictions
 
 
+def clamp_frame_delta(predictions: np.ndarray, max_delta: float = 0.5) -> np.ndarray:
+    """Prevent large frame-to-frame jumps that cause actuator overshoots."""
+    out = predictions.copy()
+    for t in range(1, len(out)):
+        delta = out[t] - out[t - 1]
+        excess = np.abs(delta) > max_delta
+        out[t] = np.where(excess, out[t - 1] + np.sign(delta) * max_delta, out[t])
+    return out
+
+
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
@@ -134,6 +145,7 @@ def run_neuro_simulation(
     cfg = load_config(config_path)
     tensor_path = tensor_path or cfg["paths"]["motor_tensor"]
     model_path = model_path or cfg["paths"]["model"]
+    pca_path = cfg["paths"].get("pca_model", "models/pca_v1.pkl")
     scfg = cfg.get("simulation", {})
     smooth_window: int = scfg.get("smooth_window", 5)
     smooth_poly: int = scfg.get("smooth_poly", 2)
@@ -145,6 +157,15 @@ def run_neuro_simulation(
         print(f"[!] Model not found at {model_path}. Run train_decoder.py first.")
         return
 
+    # Apply PCA if a saved transform exists
+    if Path(pca_path).exists():
+        with open(pca_path, "rb") as f:
+            pca = pickle.load(f)
+        X_np = pca.transform(X_np).astype(np.float32)
+        print(f"[*] PCA applied: {pca.n_features_in_} → {X_np.shape[1]} components")
+    else:
+        print(f"[!] No PCA model at {pca_path} — passing raw features to decoder.")
+
     model = NS2CDecoder(input_size=X_np.shape[1]).to(device)
     model.load_state_dict(torch.load(model_path, map_location=device))
     model.eval()
@@ -153,7 +174,7 @@ def run_neuro_simulation(
         X_t = torch.tensor(X_np, dtype=torch.float32).unsqueeze(0).to(device)
         raw_preds = model(X_t).cpu().numpy()[0]  # (T, 7)
 
-    predictions = enforce_joint_limits(smooth_trajectory(raw_preds, smooth_window, smooth_poly))
+    predictions = clamp_frame_delta(enforce_joint_limits(smooth_trajectory(raw_preds, smooth_window, smooth_poly)))
     n_frames = predictions.shape[0]
     print(f"[*] Decoded {n_frames} frames (smoothed + joint-limited)")
     for t, row in enumerate(predictions):
@@ -171,10 +192,9 @@ def run_neuro_simulation(
 
     print("\n[*] Launching MuJoCo viewer ...")
     with mujoco.viewer.launch_passive(mj_model, mj_data) as viewer:
-        start_time = time.time()
         duration = float(n_frames)
 
-        while viewer.is_running() and (time.time() - start_time) < duration:
+        while viewer.is_running() and mj_data.time < duration:
             step_start = time.time()
             elapsed = mj_data.time
 
@@ -184,6 +204,7 @@ def run_neuro_simulation(
 
             mj_data.ctrl[:] = targets
             mujoco.mj_step(mj_model, mj_data)
+            mj_data.qvel[:] = np.clip(mj_data.qvel, -2.0, 2.0)
             viewer.sync()
 
             wait = mj_model.opt.timestep - (time.time() - step_start)

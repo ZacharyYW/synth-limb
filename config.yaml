@@ -5,6 +5,7 @@ paths:
   motor_tensor: data/synthetic_fmri/motor_intent_refined.npy
   kinematics: data/synthetic_fmri/grasp_kinematics.npy
   model: models/ns2c_decoder_v1.pth
+  pca_model: models/pca_v1.pkl
   atlas: talairach.nii
 
 masking:
@@ -17,6 +18,9 @@ decoder:
   epochs: 300
   lr: 0.01
   n_frames: 4               # number of fMRI time-frames to decode
+  pca_components: 32        # PCA bottleneck before LSTM (capped by n_samples at runtime)
+  dropout: 0.3              # LSTM inter-layer dropout
+  weight_decay: 0.0001      # Adam L2 regularisation
 
 simulation:
   smooth_window: 5          # Savitzky-Golay window length (must be odd)

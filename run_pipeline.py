@@ -30,6 +30,7 @@ STAGES: list[tuple[str, str]] = [
     ("tribe_extraction", "scripts/tribe_extraction.py"),
     ("neural_masking",   "scripts/neural_masking.py"),
     ("verify",           "scripts/verify_tensors.py"),
+    ("validate",         "scripts/validate_correlation.py"),
     ("train",            "scripts/train_decoder.py"),
     ("simulate",         "scripts/simulate_robot.py"),
 ]
