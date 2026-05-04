@@ -10,6 +10,8 @@ talairach.nii
 
 # Dependencies
 tribev2/
+claude.md
+DEVLOG.md
 
 # Raw and Synthetic Data 
 data/raw_video/*.mp4

@@ -176,7 +176,7 @@ def run_neuro_simulation(
 
         while viewer.is_running() and (time.time() - start_time) < duration:
             step_start = time.time()
-            elapsed = time.time() - start_time
+            elapsed = mj_data.time
 
             frame_idx = min(int(elapsed), n_frames - 2)
             alpha = elapsed - frame_idx
