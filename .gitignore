@@ -13,7 +13,5 @@ tribev2/
 claude.md
 DEVLOG.md
 
-# Raw and Synthetic Data 
-data/raw_video/*.mp4
-data/raw_video/*.mov
-data/synthetic_fmri/*.npy
+# Data 
+data/
